@@ -1,0 +1,10 @@
+.game-root {
+    -fx-background-color: #faf8ef;
+}
+
+.empty-tile {
+    -fx-fill: #cdc1b4;
+    -fx-stroke-width: 14px;
+    -fx-stroke-type: centered;
+    -fx-stroke: #BBADA0;
+}
