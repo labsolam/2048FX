@@ -34,7 +34,7 @@ public class Main extends Application
 		primaryStage.setMinHeight(200);
 		primaryStage.setMinWidth(200);
 		primaryStage.setScene(scene);
-		primaryStage.setMaximized(true);
+//		primaryStage.setMaximized(true);
 		primaryStage.show();
 	}
 }

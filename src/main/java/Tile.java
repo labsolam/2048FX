@@ -1,3 +1,4 @@
+import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 
 public class Tile extends Label
@@ -12,7 +13,8 @@ public class Tile extends Label
 		this.score = score;
 		this.location = new Location(x, y);
 		setText(Integer.toString(score));
-		setStyle(CSS_PREFIX + this.score);
+		setAlignment(Pos.CENTER);
+		getStyleClass().add((CSS_PREFIX + this.score));
 	}
 
 	int getScore()
@@ -23,6 +25,11 @@ public class Tile extends Label
 	boolean isMerged()
 	{
 		return merged;
+	}
+
+	public Location getLocation()
+	{
+		return location;
 	}
 
 	void setMerged(boolean merged)

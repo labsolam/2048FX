@@ -1,9 +1,6 @@
 import javafx.scene.layout.VBox;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -34,7 +31,19 @@ public class GameController
 				)
 		);
 		this.gameUI = new GameUI(height, width);
-		this.generateRandomTile();
+		this.startGame();
+	}
+
+	private void startGame()
+	{
+		Tile tile1 = this.generateRandomTile();
+		Tile tile2 = this.generateRandomTile();
+
+		this.tiles.put(tile1.getLocation(), tile1);
+		this.tiles.put(tile2.getLocation(), tile2);
+
+		this.gameUI.addTile(tile1);
+		this.gameUI.addTile(tile2);
 	}
 
 	VBox getGame()
@@ -42,10 +51,16 @@ public class GameController
 		return this.gameUI.getGameView();
 	}
 
-	private void generateRandomTile()
+	private Tile generateRandomTile()
 	{
-//		Random
-		this.getEmptyLocations().forEach(System.out::println);
+		List<Location> emptyLocations = this.getEmptyLocations();
+		Collections.shuffle(emptyLocations);
+		Location newRandom = emptyLocations.get(new Random().nextInt(emptyLocations.size()));
+
+		// 90% chance of 2
+		int value = new Random().nextDouble() < 0.9d ? 2 : 4;
+
+		return new Tile(value, newRandom.getX(), newRandom.getY());
 	}
 
 	private List<Location> getEmptyLocations()
@@ -53,6 +68,7 @@ public class GameController
 		return this.tiles.entrySet()
 				.stream()
 				.filter(entry -> entry.getValue() == null)
-				.map(Map.Entry::getKey).collect(Collectors.toList());
+				.map(Map.Entry::getKey)
+				.collect(Collectors.toList());
 	}
 }
