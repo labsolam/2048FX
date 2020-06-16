@@ -1,4 +1,7 @@
+import javafx.beans.value.ChangeListener;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Group;
 import javafx.scene.control.Label;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
@@ -8,21 +11,29 @@ import java.util.stream.IntStream;
 
 public class GameUI
 {
-	private static final int CELL_SIZE = 128;
+	private static final int MIN_CELL_SIZE = 128;
+	private static final int BORDER_CELL_SIZE = 14;
 
 	/** Root of view containing all elements for the game. */
 	private final VBox root = new VBox();
 	private final Label scoreLabel = new Label("0"); //Default score
 	private final Pane board = new Pane();
 
+	private int width;
+	private int height;
+
 	GameUI(int height, int width)
 	{
+		this.height = height;
+		this.width = width;
 		this.createGame(width, height);
 	}
 
 	private void createGame(int width, int height)
 	{
 		this.root.getStyleClass().add("game-root");
+		this.root.setMinHeight(200);
+		this.root.setMinWidth(200);
 		createScore();
 		createBoard(width, height);
 	}
@@ -30,6 +41,7 @@ public class GameUI
 	private void createScore()
 	{
 		Label scoreNameLabel = new Label("Score");
+		scoreNameLabel.getStyleClass().add("score-label");
 		scoreLabel.setBorder(new Border(new BorderStroke(Color.BLACK, BorderStrokeStyle.SOLID, new CornerRadii(5), BorderStroke.THIN)));
 		scoreLabel.setMinHeight(20);
 		scoreLabel.setMinWidth(20);
@@ -45,26 +57,30 @@ public class GameUI
 	private void createBoard(int width, int height)
 	{
 		board.getStyleClass().add("board");
+		board.setMaxWidth(MIN_CELL_SIZE * width);
+		board.setMaxHeight(MIN_CELL_SIZE * height);
 
-		IntStream.range(0, 4).forEach(row ->
-				IntStream.range(0, 4).forEach(column -> board.getChildren().add(this.createEmptyTile(row, column))));
+		IntStream.range(0, height).forEach(row ->
+				IntStream.range(0, width).forEach(column -> board.getChildren().add(this.createEmptyTile(row, column))));
 
 		this.root.getChildren().add(board);
+
+//		ChangeListener<Number> changeListener = (observableValue, oldDouble, newDouble) -> {
+//			System.out.println("Height: " + this.root.getHeight() + " Width: " + this.root.getWidth());
+//			this.root.setPadding(new Insets(height, 0, 0, width));
+//		};
+//		this.root.widthProperty().addListener(changeListener);
+//		this.root.heightProperty().addListener(changeListener);
 	}
 
 	private Rectangle createEmptyTile(int x, int y)
 	{
-		Rectangle rectangle = new Rectangle(CELL_SIZE, CELL_SIZE);
+		Rectangle rectangle = new Rectangle(MIN_CELL_SIZE, MIN_CELL_SIZE);
 		rectangle.getStyleClass().add("empty-tile");
-		rectangle.setX(x * CELL_SIZE);
-		rectangle.setY(y * CELL_SIZE);
+		rectangle.setX(x * MIN_CELL_SIZE);
+		rectangle.setY(y * MIN_CELL_SIZE);
 
 		return rectangle;
-	}
-
-	private void showStartOverlay()
-	{
-
 	}
 
 	VBox getGameView()
@@ -74,14 +90,11 @@ public class GameUI
 
 	void addTile(Tile tile)
 	{
-		System.out.println("Adding : " + tile.getLocation().getX() + ", " + tile.getLocation().getY());
-
 		this.board.getChildren().add(tile);
-		tile.setMinSize(CELL_SIZE, CELL_SIZE);
-		tile.setPrefSize(CELL_SIZE, CELL_SIZE);
-		tile.setMaxSize(CELL_SIZE, CELL_SIZE);
-		tile.setLayoutX(CELL_SIZE * tile.getLocation().getX()); // Divide by 2 to put label in centre of rectangle
-		tile.setLayoutY(CELL_SIZE * tile.getLocation().getY()); //Somehow y axis is already in the centre of the rectangle
+		tile.setMinSize(MIN_CELL_SIZE - BORDER_CELL_SIZE, MIN_CELL_SIZE - BORDER_CELL_SIZE);
+		tile.setPrefSize(MIN_CELL_SIZE - BORDER_CELL_SIZE, MIN_CELL_SIZE - BORDER_CELL_SIZE);
+		tile.setMaxSize(MIN_CELL_SIZE - BORDER_CELL_SIZE, MIN_CELL_SIZE - BORDER_CELL_SIZE);
+		tile.setLayoutX(MIN_CELL_SIZE * tile.getLocation().getX() + BORDER_CELL_SIZE / 2);
+		tile.setLayoutY(MIN_CELL_SIZE * tile.getLocation().getY() + BORDER_CELL_SIZE/2);
 	}
-
 }

@@ -1,29 +1,35 @@
 .game-root {
     -fx-background-color : #faf8ef;
 }
+.score-label {
 
+}
+.board {
+    -fx-background-color: #bbada0;
+    -fx-border-color: #bbada0;
+    -fx-border-width: 2;
+    -fx-background-radius: 6;
+    -fx-border-radius: 6;
+}
 .empty-tile {
     -fx-fill : #cdc1b4;
     -fx-stroke-width : 14px;
-    -fx-stroke-type : centered;
     -fx-stroke : #BBADA0;
+    -fx-background-radius: 6;
+    -fx-border-radius: 10;
 }
 
 .tile-2    {
     -fx-background-color: #eee4da;
-    /*
     -fx-font-size: 55px;
     -fx-text-fill: #776e65;
     -fx-background-radius: 3;
     -fx-border-radius: 3;
-    */
 }
 .tile-4    {
     -fx-background-color: #ede0c8;
-    /*
     -fx-font-size: 55px;
     -fx-text-fill: #776e65;
     -fx-background-radius: 3;
     -fx-border-radius: 3;
-    */
 }

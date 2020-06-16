@@ -4,22 +4,22 @@ import javafx.scene.control.Label;
 public class Tile extends Label
 {
 	private static final String CSS_PREFIX = "tile-";
-	private int score;
+	private int value;
 	private final Location location;
 	private boolean merged;
 
-	Tile(int score, int x, int y)
+	Tile(int value, int x, int y)
 	{
-		this.score = score;
+		this.value = value;
 		this.location = new Location(x, y);
-		setText(Integer.toString(score));
+		setText(Integer.toString(value));
 		setAlignment(Pos.CENTER);
-		getStyleClass().add((CSS_PREFIX + this.score));
+		getStyleClass().add((CSS_PREFIX + this.value));
 	}
 
-	int getScore()
+	int getValue()
 	{
-		return score;
+		return value;
 	}
 
 	boolean isMerged()
@@ -39,22 +39,22 @@ public class Tile extends Label
 
 	boolean canMerge(Tile other)
 	{
-		return this.score == other.score && !other.isMerged() && !this.isMerged();
+		return this.value == other.value && !other.isMerged() && !this.isMerged();
 	}
 
 	void merge()
 	{
 		this.merged = true;
-		this.score *= 2;
-		getStyleClass().remove(CSS_PREFIX + this.score);
-		getStyleClass().add(CSS_PREFIX +  this.score);
+		this.value *= 2;
+		getStyleClass().remove(CSS_PREFIX + this.value);
+		getStyleClass().add(CSS_PREFIX +  this.value);
 	}
 
 	@Override
 	public String toString()
 	{
 		return "Tile{" +
-				"score=" + score +
+				"score=" + value +
 				", location=" + location +
 				", merged=" + merged +
 				'}';

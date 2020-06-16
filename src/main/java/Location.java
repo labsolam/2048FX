@@ -47,4 +47,9 @@ public class Location
 				", y=" + y +
 				'}';
 	}
+
+	public static Location offsetLocation(Location location, Direction direction)
+	{
+		return new Location(location.getX() + direction.getX(), location.getY() + direction.getY());
+	}
 }
