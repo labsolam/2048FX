@@ -32,9 +32,9 @@ public class Tile extends Label
 		return location;
 	}
 
-	void setMerged(boolean merged)
+	void unMerge()
 	{
-		this.merged = merged;
+		this.merged = false;
 	}
 
 	boolean canMerge(Tile other)
@@ -46,6 +46,7 @@ public class Tile extends Label
 	{
 		this.merged = true;
 		this.value *= 2;
+		setText(Integer.toString(value));
 		getStyleClass().remove(CSS_PREFIX + this.value);
 		getStyleClass().add(CSS_PREFIX +  this.value);
 	}

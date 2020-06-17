@@ -1,7 +1,4 @@
-import javafx.beans.value.ChangeListener;
-import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Group;
 import javafx.scene.control.Label;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
@@ -11,8 +8,8 @@ import java.util.stream.IntStream;
 
 public class GameUI
 {
-	private static final int MIN_CELL_SIZE = 128;
-	private static final int BORDER_CELL_SIZE = 14;
+	static final int MIN_CELL_SIZE = 128;
+	static final int BORDER_CELL_SIZE = 14;
 
 	/** Root of view containing all elements for the game. */
 	private final VBox root = new VBox();
@@ -88,13 +85,18 @@ public class GameUI
 		return this.root;
 	}
 
+	Pane getBoard()
+	{
+		return this.board;
+	}
+
 	void addTile(Tile tile)
 	{
 		this.board.getChildren().add(tile);
 		tile.setMinSize(MIN_CELL_SIZE - BORDER_CELL_SIZE, MIN_CELL_SIZE - BORDER_CELL_SIZE);
 		tile.setPrefSize(MIN_CELL_SIZE - BORDER_CELL_SIZE, MIN_CELL_SIZE - BORDER_CELL_SIZE);
 		tile.setMaxSize(MIN_CELL_SIZE - BORDER_CELL_SIZE, MIN_CELL_SIZE - BORDER_CELL_SIZE);
-		tile.setLayoutX(MIN_CELL_SIZE * tile.getLocation().getX() + BORDER_CELL_SIZE / 2);
-		tile.setLayoutY(MIN_CELL_SIZE * tile.getLocation().getY() + BORDER_CELL_SIZE/2);
+		tile.setLayoutX(MIN_CELL_SIZE * tile.getLocation().getX() + BORDER_CELL_SIZE / 2f);
+		tile.setLayoutY(MIN_CELL_SIZE * tile.getLocation().getY() + BORDER_CELL_SIZE / 2f);
 	}
 }
