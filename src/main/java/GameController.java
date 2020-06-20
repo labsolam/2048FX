@@ -5,7 +5,10 @@ import javafx.animation.TranslateTransition;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 
+import java.nio.charset.IllegalCharsetNameException;
 import java.util.*;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -18,6 +21,8 @@ public class GameController
 	private int width;
 	private final GameUI gameUI;
 	private final Map<Location, Tile> tiles;
+
+	private boolean test = false;
 
 	private final int score = 0;
 
@@ -56,7 +61,6 @@ public class GameController
 	private Tile generateRandomTile()
 	{
 		List<Location> emptyLocations = this.getEmptyLocations();
-		System.out.println(emptyLocations.size() - 1);
 		Location newRandom = emptyLocations.get(new Random().nextInt(emptyLocations.size()));
 
 		// 90% chance of 2
@@ -75,7 +79,6 @@ public class GameController
 				.stream()
 				.filter(entry -> entry.getValue() == null)
 				.map(Map.Entry::getKey)
-				.peek(System.out::println)
 				.collect(Collectors.toList());
 	}
 
@@ -92,60 +95,73 @@ public class GameController
 
 	private void move(Direction direction)
 	{
+		synchronized (tiles)
+		{
+			if (test)
+			{
+				return;
+			}
+		}
+
 		ParallelTransition parallelTransition = new ParallelTransition();
 		List<Tile> tilesToRemove = new ArrayList<>();
-
-		Comparator<Integer> comparator = direction == Direction.UP || direction == Direction.LEFT ?
-				Comparator.naturalOrder() : Collections.reverseOrder();
 
 		//Each move updates the score, but you can only use final variables in the lambda
 		//I could use AtomicInteger, but  it's not necessary as this will never be parallel
 		//Little trick to update the score using a final array
 		final int[] score = new int[1];
 
-		IntStream.range(0, width)
-				.boxed()
-				.sorted(comparator)
-				.forEach(col ->
-						IntStream.range(0, height)
-								.boxed()
-								.sorted(comparator)
-								.forEach(row ->
-										{
-											Location currentLocation = new Location(col, row);
-											Location furthestLocation = findFurthestCell(currentLocation, direction);
+		this.boardNavigator(direction, x ->
+		{
+			Location currentLocation = new Location(col, row);
+			Location furthestLocation = findFurthestCell(currentLocation, direction);
 
-											if (!currentLocation.equals(furthestLocation))
-											{
-												Optional<Tile> optionalTile = getOptionalTile(furthestLocation);
-												if (optionalTile.isPresent())
-												{
-													parallelTransition.getChildren()
-															.add(animateMergeTiles(currentLocation, furthestLocation));
-													tilesToRemove.add(this.tiles.get(currentLocation));
-													this.tiles.replace(currentLocation, null);
-													this.tiles.get(furthestLocation).merge();
-													score[0] += this.tiles.get(furthestLocation).getValue();
-												}
-												else
-												{
-													parallelTransition.getChildren().add(animateMoveTiles(currentLocation, furthestLocation));
-													//Tile is empty, move
-													Tile tile = this.tiles.replace(currentLocation, null);
-													this.tiles.put(furthestLocation, tile);
-												}
-											}
-										}
-								)
+			if (!currentLocation.equals(furthestLocation))
+			{
+				Optional<Tile> optionalTile = getOptionalTile(furthestLocation);
+				if (optionalTile.isPresent())
+				{
+					parallelTransition.getChildren()
+							.add(animateMergeTiles(currentLocation, furthestLocation));
+					tilesToRemove.add(this.tiles.get(currentLocation));
+					this.tiles.replace(currentLocation, null);
+					this.tiles.get(furthestLocation).merge();
+					score[0] += this.tiles.get(furthestLocation).getValue();
+				} else
+				{
+					parallelTransition.getChildren().add(animateMoveTiles(currentLocation, furthestLocation));
+					//Tile is empty, move
+					Tile tile = this.tiles.replace(currentLocation, null);
+					this.tiles.put(furthestLocation, tile);
+				}
+			}
+		}
 				);
 
-		parallelTransition.getChildren().add(animateAddingNewTile(this.generateRandomTile()));
 		parallelTransition.setOnFinished(e -> {
 			this.tiles.values().stream().filter(Objects::nonNull).forEach(Tile::unMerge);
+
+			if (this.getEmptyLocations().size() == 0 && movementsAvailable())
+			{
+
+			}
+
+			synchronized (this.tiles)
+			{
+				this.test = false;
+			}
 		});
+
+		synchronized (this.tiles)
+		{
+			this.test = true;
+		}
 
 		parallelTransition.play();
 		this.gameUI.getBoard().getChildren().removeAll(tilesToRemove);
+
+
+//		parallelTransition.getChildren().add(animateAddingNewTile(this.generateRandomTile()));
 	}
 
 	private Location findFurthestCell(Location location, Direction direction)
@@ -232,5 +248,25 @@ public class GameController
 		scaleTransition.setAutoReverse(true);
 
 		return scaleTransition;
+	}
+
+	private boolean movementsAvailable()
+	{
+
+	}
+
+	private void boardNavigator(Direction direction, BiConsumer<Integer, Integer> consumer)
+	{
+		Comparator<Integer> comparator = direction == Direction.UP || direction == Direction.LEFT ?
+				Comparator.naturalOrder() : Collections.reverseOrder();
+
+		IntStream.range(0, width)
+				.boxed()
+				.sorted(comparator)
+				.forEach(col ->
+						IntStream.range(0, height)
+								.boxed()
+								.sorted(comparator)
+								.forEach(consumer));
 	}
 }
