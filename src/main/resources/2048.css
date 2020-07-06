@@ -2,7 +2,8 @@
     -fx-background-color : #faf8ef;
 }
 .score-label {
-
+    -fx-font-size : 20px;
+    -fx-font-weight : bold
 }
 .board {
     -fx-background-color: #bbada0;

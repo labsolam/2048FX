@@ -1,49 +1,48 @@
-import javafx.animation.Interpolator;
-import javafx.animation.ParallelTransition;
-import javafx.animation.ScaleTransition;
-import javafx.animation.TranslateTransition;
-import javafx.scene.layout.VBox;
+import javafx.animation.*;
+import javafx.scene.control.Button;
+import javafx.scene.layout.StackPane;
 import javafx.util.Duration;
 
-import java.nio.charset.IllegalCharsetNameException;
 import java.util.*;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.IntBinaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class GameController
 {
-	private static final int DEFAULT_GRID_HEIGHT = 4;
-	private static final int DEFAULT_GRID_WIDTH = 4;
+	private static final int GRID_HEIGHT = 4;
+	private static final int GRID_WIDTH = 4;
 
-	private int height;
-	private int width;
 	private final GameUI gameUI;
 	private final Map<Location, Tile> tiles;
 
-	private boolean test = false;
+	private final List<Integer> boardWidth;
+	private final List<Integer> boardHeight;
 
-	private final int score = 0;
+	private boolean tilesMoving = false;
+	private boolean hasWon = false;
+
+	private int score = 0;
 
 	GameController()
 	{
-		this(DEFAULT_GRID_HEIGHT, DEFAULT_GRID_WIDTH);
+		this.tiles = new HashMap<>();
+		initialiseBoard();
+		this.boardWidth = IntStream.range(0, GRID_WIDTH).boxed().collect(Collectors.toList());
+		this.boardHeight = IntStream.range(0, GRID_HEIGHT).boxed().collect(Collectors.toList());
+		this.gameUI = new GameUI();
+		this.addKeyHandlers();
+		this.startGame();
 	}
 
-	GameController(int height, int width)
+	private void initialiseBoard()
 	{
-		this.height = height;
-		this.width = width;
-		this.tiles = new HashMap<>();
-		IntStream.range(0, height).forEach(column ->
-				IntStream.range(0, width).forEach(
+		IntStream.range(0, GRID_HEIGHT).forEach(column ->
+				IntStream.range(0, GRID_WIDTH).forEach(
 						row -> tiles.put(new Location(column, row), null)
 				)
 		);
-		this.gameUI = new GameUI(height, width);
-		this.addKeyHandlers();
-		this.startGame();
 	}
 
 	private void startGame()
@@ -53,12 +52,12 @@ public class GameController
 		this.generateRandomTile();
 	}
 
-	VBox getGame()
+	StackPane getGame()
 	{
 		return this.gameUI.getGameView();
 	}
 
-	private Tile generateRandomTile()
+	private void generateRandomTile()
 	{
 		List<Location> emptyLocations = this.getEmptyLocations();
 		Location newRandom = emptyLocations.get(new Random().nextInt(emptyLocations.size()));
@@ -70,7 +69,20 @@ public class GameController
 		this.tiles.put(tile.getLocation(), tile);
 		this.gameUI.addTile(tile);
 
-		return tile;
+		animateAddingNewTile(tile).play();
+
+		if  (isGameOver())
+		{
+			Button button = new Button("Try Again");
+			button.setOnAction(event -> restartGame());
+
+			this.gameUI.showOverlay("Game over", button);
+		}
+	}
+
+	private boolean isGameOver()
+	{
+		return this.getEmptyLocations().size() == 0 && !movementsAvailable();
 	}
 
 	private List<Location> getEmptyLocations()
@@ -97,7 +109,7 @@ public class GameController
 	{
 		synchronized (tiles)
 		{
-			if (test)
+			if (tilesMoving)
 			{
 				return;
 			}
@@ -109,59 +121,86 @@ public class GameController
 		//Each move updates the score, but you can only use final variables in the lambda
 		//I could use AtomicInteger, but  it's not necessary as this will never be parallel
 		//Little trick to update the score using a final array
-		final int[] score = new int[1];
+		final int[] moveScore = new int[1];
 
-		this.boardNavigator(direction, x ->
-		{
-			Location currentLocation = new Location(col, row);
-			Location furthestLocation = findFurthestCell(currentLocation, direction);
+		int tilesMoved = this.boardNavigator(direction, (col, row) ->
+				{
+					Location currentLocation = new Location(col, row);
+					Location furthestLocation = findFurthestCell(currentLocation, direction);
 
-			if (!currentLocation.equals(furthestLocation))
-			{
-				Optional<Tile> optionalTile = getOptionalTile(furthestLocation);
-				if (optionalTile.isPresent())
-				{
-					parallelTransition.getChildren()
-							.add(animateMergeTiles(currentLocation, furthestLocation));
-					tilesToRemove.add(this.tiles.get(currentLocation));
-					this.tiles.replace(currentLocation, null);
-					this.tiles.get(furthestLocation).merge();
-					score[0] += this.tiles.get(furthestLocation).getValue();
-				} else
-				{
-					parallelTransition.getChildren().add(animateMoveTiles(currentLocation, furthestLocation));
-					//Tile is empty, move
-					Tile tile = this.tiles.replace(currentLocation, null);
-					this.tiles.put(furthestLocation, tile);
+					if (!currentLocation.equals(furthestLocation))
+					{
+						Optional<Tile> optionalTile = getOptionalTile(furthestLocation);
+						if (optionalTile.isPresent())
+						{
+							parallelTransition.getChildren()
+									.add(animateMergeTiles(currentLocation, furthestLocation));
+							tilesToRemove.add(this.tiles.get(currentLocation));
+							this.tiles.replace(currentLocation, null);
+							this.tiles.get(furthestLocation).merge();
+							this.tiles.get(furthestLocation).toFront();
+							moveScore[0] += this.tiles.get(furthestLocation).getValue();
+
+							if (this.tiles.get(furthestLocation).getValue() == 2048 && !hasWon)
+							{
+								hasWon = true;
+
+								Button keepGoing = new Button("Keep Going");
+								keepGoing.setOnAction(e1 -> this.gameUI.removeOverlay());
+
+								Button restart = new Button("Restart");
+								restart.setOnAction(e2 -> restartGame());
+
+								this.gameUI.showOverlay("You win!", keepGoing, restart);
+							}
+						}
+						else
+						{
+							parallelTransition.getChildren().add(animateMoveTiles(currentLocation, furthestLocation));
+							//Tile is empty, move
+							Tile tile = this.tiles.replace(currentLocation, null);
+							this.tiles.put(furthestLocation, tile);
+						}
+						return 1;
+					}
+					return 0;
 				}
-			}
-		}
-				);
+		);
 
-		parallelTransition.setOnFinished(e -> {
-			this.tiles.values().stream().filter(Objects::nonNull).forEach(Tile::unMerge);
-
-			if (this.getEmptyLocations().size() == 0 && movementsAvailable())
+		if (parallelTransition.getChildren().size() > 0)
+		{
+			parallelTransition.setOnFinished(e ->
 			{
+				score += moveScore[0];
+				this.gameUI.updateScore(score);
+				this.tiles.values().stream().filter(Objects::nonNull).forEach(Tile::unMerge);
+				this.gameUI.getBoard().getChildren().removeAll(tilesToRemove);
 
-			}
+				if (isGameOver())
+				{
+					Button button = new Button("Try Again");
+					button.setOnAction(event -> restartGame());
+
+					this.gameUI.showOverlay("Game over", button);
+				}
+				else if (this.getEmptyLocations().size() > 0 && tilesMoved > 0)
+				{
+					this.generateRandomTile();
+				}
+
+				synchronized (this.tiles)
+				{
+					this.tilesMoving = false;
+				}
+			});
 
 			synchronized (this.tiles)
 			{
-				this.test = false;
+				this.tilesMoving = true;
 			}
-		});
 
-		synchronized (this.tiles)
-		{
-			this.test = true;
+			parallelTransition.play();
 		}
-
-		parallelTransition.play();
-		this.gameUI.getBoard().getChildren().removeAll(tilesToRemove);
-
-
-//		parallelTransition.getChildren().add(animateAddingNewTile(this.generateRandomTile()));
 	}
 
 	private Location findFurthestCell(Location location, Direction direction)
@@ -174,8 +213,12 @@ public class GameController
 			if (canCellMove(location, offsetLocation))
 			{
 				furthestCell = offsetLocation;
+				offsetLocation = Location.offsetLocation(offsetLocation, direction);
 			}
-			offsetLocation = Location.offsetLocation(offsetLocation, direction);
+			else
+			{
+				break;
+			}
 		}
 
 		return furthestCell;
@@ -183,7 +226,7 @@ public class GameController
 
 	private boolean isLocationValid(Location location)
 	{
-		return location.getX() >= 0 && location.getX() < this.width && location.getY() >= 0 && location.getY() < this.height;
+		return location.getX() >= 0 && location.getX() < GRID_WIDTH && location.getY() >= 0 && location.getY() < GRID_HEIGHT;
 	}
 
 	private boolean canCellMove(Location locationToMove, Location locationToMoveTo)
@@ -207,11 +250,11 @@ public class GameController
 		return Optional.ofNullable(this.tiles.get(location));
 	}
 
-	private ParallelTransition animateMergeTiles(Location toMove, Location toMoveTo)
+	private SequentialTransition animateMergeTiles(Location toMove, Location toMoveTo)
 	{
 		//First move the tile
-		ParallelTransition parallelTransition = new ParallelTransition();
-		parallelTransition.getChildren().add(animateMoveTiles(toMove, toMoveTo));
+		SequentialTransition sequentialTransition = new SequentialTransition();
+		sequentialTransition.getChildren().add(animateMoveTiles(toMove, toMoveTo));
 
 		//Scale the merge
 		ScaleTransition scaleTransition = new ScaleTransition(Duration.millis(80));
@@ -222,9 +265,9 @@ public class GameController
 		scaleTransition.setByY(0.1f);
 		scaleTransition.setInterpolator(Interpolator.EASE_IN);
 
-		parallelTransition.getChildren().add(scaleTransition);
+		sequentialTransition.getChildren().add(scaleTransition);
 
-		return parallelTransition;
+		return sequentialTransition;
 	}
 
 	private TranslateTransition animateMoveTiles(Location toMove, Location toMoveTo)
@@ -240,33 +283,63 @@ public class GameController
 	private ScaleTransition animateAddingNewTile(Tile tile)
 	{
 		ScaleTransition scaleTransition = new ScaleTransition(Duration.millis(80), tile);
-		scaleTransition.setFromX(1);
-		scaleTransition.setFromY(1);
-		scaleTransition.setToX(0.5);
-		scaleTransition.setToY(0.5);
-		scaleTransition.setCycleCount(2);
-		scaleTransition.setAutoReverse(true);
+		scaleTransition.setFromX(0.5);
+		scaleTransition.setFromY(0.5);
+		scaleTransition.setToX(1);
+		scaleTransition.setToY(1);
+		scaleTransition.setCycleCount(1);
 
 		return scaleTransition;
 	}
 
 	private boolean movementsAvailable()
 	{
+		int upMovesAvailable =
+				this.boardNavigator(Direction.UP, (col, row) ->
+				{
+					Location currentLocation = new Location(col, row);
+					Location furthestLocation = findFurthestCell(currentLocation, Direction.UP);
 
+					return currentLocation.equals(furthestLocation) ? 0 : 1;
+				});
+
+		int leftMovesAvailable =
+				this.boardNavigator(Direction.LEFT, (col, row) ->
+				{
+					Location currentLocation = new Location(col, row);
+					Location furthestLocation = findFurthestCell(currentLocation, Direction.LEFT);
+
+					return currentLocation.equals(furthestLocation) ? 0 : 1;
+				});
+		return upMovesAvailable + leftMovesAvailable > 0;
 	}
 
-	private void boardNavigator(Direction direction, BiConsumer<Integer, Integer> consumer)
+	private int boardNavigator(Direction direction, IntBinaryOperator intBinaryOperator)
 	{
 		Comparator<Integer> comparator = direction == Direction.UP || direction == Direction.LEFT ?
 				Comparator.naturalOrder() : Collections.reverseOrder();
 
-		IntStream.range(0, width)
-				.boxed()
-				.sorted(comparator)
-				.forEach(col ->
-						IntStream.range(0, height)
-								.boxed()
-								.sorted(comparator)
-								.forEach(consumer));
+		this.boardWidth.sort(comparator);
+		this.boardHeight.sort(comparator);
+
+		AtomicInteger movesAvailable = new AtomicInteger();
+
+		this.boardWidth.forEach(col ->
+				this.boardHeight.forEach(row ->
+						movesAvailable.addAndGet(intBinaryOperator.applyAsInt(col, row))
+				)
+		);
+
+		return movesAvailable.get();
+	}
+
+	void restartGame()
+	{
+		this.gameUI.resetBoard();
+		this.hasWon = false;
+		this.score = 0;
+		this.tiles.clear();
+		this.initialiseBoard();
+		startGame();
 	}
 }
